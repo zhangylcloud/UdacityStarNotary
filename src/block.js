@@ -41,7 +41,7 @@ class Block {
             // Save in auxiliary variable the current block hash
             let blockHash = self.hash;                                
             // Recalculate the hash of the Block
-            self.hash = '';
+            self.hash = null;
             let blockHashCal = SHA256(JSON.stringify(self)).toString();
             // Comparing if the hashes changed
             if(blockHash === blockHashCal){
@@ -69,9 +69,35 @@ class Block {
         // Parse the data to an object to be retrieve.
 
         // Resolve with the data if the object isn't the Genesis block
+        let bodyHex = this.body;
+        let bodyString = hex2ascii(bodyHex);
+        let body = JSON.parse(bodyString);
 
+        if(body.data != "Genesis Block"){
+            return body;
+        }
     }
-
 }
 
 module.exports.Block = Block;                    // Exposing the Block class as a module
+
+//let b1 = new Block({
+//    data : "GenesisBlock"
+//});
+//b1.height = 1;
+//b1.time = 1;
+//console.log("b1 is ");
+//console.log(b1);
+//b1.hash = SHA256(JSON.stringify(b1)).toString();
+//
+//let b2 = new Block({
+//    data : "b2 data"
+//});
+//b2.height = 2;
+//b2.time = 2;
+//b2.previousBlockHash = b2.hash;
+//b2.hash = SHA256(JSON.stringify(b2)).toString();
+//
+//console.log(b1.validate());
+//console.log(b2.validate());
+
