@@ -18,7 +18,7 @@ class Block {
 	constructor(data){
 		this.hash = null;                                           // Hash of the block
 		this.height = 0;                                            // Block Height (consecutive number of each block)
-		this.body = Buffer(JSON.stringify(data)).toString('hex');   // Will contain the transactions stored in the block, by default it will encode the data
+		this.body = Buffer.from(JSON.stringify(data)).toString('hex');   // Will contain the transactions stored in the block, by default it will encode the data
 		this.time = 0;                                              // Timestamp for the Block creation
 		this.previousBlockHash = null;                              // Reference to the previous Block Hash
     }
@@ -45,13 +45,12 @@ class Block {
             let blockHashCal = SHA256(JSON.stringify(self)).toString();
             // Comparing if the hashes changed
             if(blockHash === blockHashCal){
-                resolve();
+                resolve(true);
             }
             else{
-                reject();
+                resolve(false);
             }
-        }).then(() => {return true;},
-                () => {return false;});
+        });
     }
 
     /**

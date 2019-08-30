@@ -25,7 +25,7 @@ class Blockchain {
     constructor() {
         this.chain = [];
         this.height = -1;
-        this.initializeChain();
+        //this.initializeChain();
     }
 
     /**
@@ -67,14 +67,18 @@ class Blockchain {
             let curHeight = self.height;
             let newHeight = curHeight + 1;
             block.height = newHeight;
-            block.timestamp = new Date();
-            console.log(block.timeStamp);
-            let prevBlock = getBlockByHeight(curHeight);
-            let prevHash = prevBlock.hash;
-            block.prevHash = prevHash;
+            block.time = new Date().getTime().toString().slice(0, -3);
+            let prevHash = null;
+            if(curHeight != -1){
+                let prevBlock = self.getBlockByHeight(curHeight);
+                if(prevBlock)
+                    prevHash = prevBlock.hash;
+            }
+            block.previousBlockHash = prevHash;
             block.hash = SHA256(JSON.stringify(block)).toString();
             self.chain.push(block);
             self.height = newHeight;
+            resolve()
         });
     }
 
@@ -138,7 +142,16 @@ class Blockchain {
     getBlockByHash(hash) {
         let self = this;
         return new Promise((resolve, reject) => {
-           
+            let block = self.chain.filter(p => p.hash === hash)[0];
+            if(!block)
+                resolve(null);
+            let blockBodyAscii = Buffer.from(block.body, 'hex').toString();
+            block.body = JSON.parse(blockBodyAscii);
+            if(block){
+                resolve(block);
+            } else {
+                resolve(null);
+            }
         });
     }
 
@@ -151,6 +164,10 @@ class Blockchain {
         let self = this;
         return new Promise((resolve, reject) => {
             let block = self.chain.filter(p => p.height === height)[0];
+            if(!block)
+                resolve(null);
+            let blockBodyAscii = Buffer.from(block.body, 'hex').toString();
+            block.body = JSON.parse(blockBodyAscii);
             if(block){
                 resolve(block);
             } else {
@@ -169,7 +186,16 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise((resolve, reject) => {
-            
+            for(let i = 0; i < self.chain.length; ++i){
+                let dataHex = self.chain[i].body;
+                let dataAscii = Buffer.from(dataHex, 'hex').toString();
+                let data = JSON.parse(dataAscii);
+                let star = data.star;
+                if(data.address === address){
+                    stars.push(star);
+                }
+            }
+            resolve(stars);
         });
     }
 
@@ -183,10 +209,37 @@ class Blockchain {
         let self = this;
         let errorLog = [];
         return new Promise(async (resolve, reject) => {
-            
+            if(self.height === -1){
+                resolve(errorLog);
+            }
+            let genesisBlock = self.chain[0];
+            let validateBlockResult = await genesisBlock.validate();
+            let validateBlockPrevHashResult = genesisBlock.previousBlockHash;
+            if(!validateBlockResult || validateBlockPrevHashResult != null){
+                errorLog.push(0);
+            }
+            for(let i = 1; i < self.chain.length; ++i){
+                let block = self.chain[i];
+                let validateBlockResult = await block.validate();
+                let validateBlockPrevHashResult = block.previousBlockHash;
+                if(!validateBlockResult || validateBlockPrevHashResult != self.chain[i - 1].hash){
+                    errorLog.push(i);
+                }
+            }
+            resolve(errorLog);
         });
     }
 
 }
 
 module.exports.Blockchain = Blockchain;   
+
+async function tester(){
+    let blockchain = new Blockchain();
+    await blockchain.initializeChain();
+    //let genesisBlock = await blockchain.getBlockByHash("d2485ea37cd1d30ef94496513ad494c9e9add6601eaa3ba015825851834390f8");
+    let genesisBlock = await blockchain.getBlockByHeight(0);
+    console.log(genesisBlock);
+}
+
+tester();
