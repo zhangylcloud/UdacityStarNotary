@@ -71,10 +71,11 @@ class Block {
         let bodyHex = this.body;
         let bodyString = hex2ascii(bodyHex);
         let body = JSON.parse(bodyString);
+        return body;
 
-        if(body.data != "Genesis Block"){
-            return body;
-        }
+        //if(body.data != "Genesis Block"){
+        //    return body;
+        //}
     }
 }
 
