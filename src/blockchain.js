@@ -67,28 +67,18 @@ class Blockchain {
             let curHeight = self.height;
             let newHeight = curHeight + 1;
             block.height = newHeight;
-            block.timestamp = new Date().getTime().toString();
-            if(newHeight === 0){// new block is genesis block;
-                block.prevHash = null;
+            block.time = new Date().getTime().toString().slice(0, -3);
+            let prevHash = null;
+            if(curHeight != -1){
+                let prevBlock = self.getBlockByHeight(curHeight);
+                if(prevBlock)
+                    prevHash = prevBlock.hash;
             }
-            else{// this block is not genesis block 
-                let prevBlock = {};
-                try{
-                    prevBlock = await self.getBlockByHeight(curHeight);
-                }
-                catch(err){
-                    reject("Error fetching prevBlock");
-                }
-                if(prevBlock.hash === null){
-                    reject("prevBlock is empty");
-                }
-                let prevHash = prevBlock.hash;
-                block.prevHash = prevHash;
-            }
+            block.previousBlockHash = prevHash;
             block.hash = SHA256(JSON.stringify(block)).toString();
             self.chain.push(block);
             self.height = newHeight;
-            resolve(block);
+            resolve(block)
         });
     }
 
@@ -158,6 +148,10 @@ class Blockchain {
         let self = this;
         return new Promise((resolve, reject) => {
             let block = self.chain.filter(p => p.hash === hash)[0];
+            if(!block)
+                resolve(null);
+            let blockBodyAscii = Buffer.from(block.body, 'hex').toString();
+            block.body = JSON.parse(blockBodyAscii);
             if(block){
                 resolve(block);
             } else {
@@ -175,6 +169,10 @@ class Blockchain {
         let self = this;
         return new Promise((resolve, reject) => {
             let block = self.chain.filter(p => p.height === height)[0];
+            if(!block)
+                resolve(null);
+            let blockBodyAscii = Buffer.from(block.body, 'hex').toString();
+            block.body = JSON.parse(blockBodyAscii);
             if(block){
                 resolve(block);
             } else {
@@ -193,18 +191,14 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise((resolve, reject) => {
-            let bodies = self.chain.filter(p => {
-                let bodyHex = p.body;
-                let bodyString = hex2ascii(bodyHex);
-                let body = JSON.parse(bodyString);
-                return body.address === address;
-            });
-            for(let i = 0; i < bodies.length; ++i){
-                let star = bodies[i].star;
-                let starStoryHex = star.story;
-                let starStory = hex2ascii(starStoryHex);
-                star.story = starStory;
-                stars.push(star);
+            for(let i = 0; i < self.chain.length; ++i){
+                let dataHex = self.chain[i].body;
+                let dataAscii = Buffer.from(dataHex, 'hex').toString();
+                let data = JSON.parse(dataAscii);
+                let star = data.star;
+                if(data.address === address){
+                    stars.push(star);
+                }
             }
             resolve(stars);
         });
@@ -220,7 +214,24 @@ class Blockchain {
         let self = this;
         let errorLog = [];
         return new Promise(async (resolve, reject) => {
-            
+            if(self.height === -1){
+                resolve(errorLog);
+            }
+            let genesisBlock = self.chain[0];
+            let validateBlockResult = await genesisBlock.validate();
+            let validateBlockPrevHashResult = genesisBlock.previousBlockHash;
+            if(!validateBlockResult || validateBlockPrevHashResult != null){
+                errorLog.push(0);
+            }
+            for(let i = 1; i < self.chain.length; ++i){
+                let block = self.chain[i];
+                let validateBlockResult = await block.validate();
+                let validateBlockPrevHashResult = block.previousBlockHash;
+                if(!validateBlockResult || validateBlockPrevHashResult != self.chain[i - 1].hash){
+                    errorLog.push(i);
+                }
+            }
+            resolve(errorLog);
         });
     }
 
@@ -229,11 +240,10 @@ class Blockchain {
 module.exports.Blockchain = Blockchain;   
 
 async function tester(){
-    console.log("Enter tester");
     let blockchain = new Blockchain();
     await blockchain.initializeChain();
-    await blockchain._addBlock({data : "Some Data"});
-    let block = await blockchain.getBlockByHeight(1);
-    console.log(block);
+    //let genesisBlock = await blockchain.getBlockByHash("d2485ea37cd1d30ef94496513ad494c9e9add6601eaa3ba015825851834390f8");
+    let genesisBlock = await blockchain.getBlockByHeight(0);
+    console.log(genesisBlock);
 }
 tester();
