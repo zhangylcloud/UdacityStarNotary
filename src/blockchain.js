@@ -25,7 +25,7 @@ class Blockchain {
     constructor() {
         this.chain = [];
         this.height = -1;
-        this.initializeChain();
+        //this.initializeChain();
     }
 
     /**
@@ -67,14 +67,28 @@ class Blockchain {
             let curHeight = self.height;
             let newHeight = curHeight + 1;
             block.height = newHeight;
-            block.timestamp = new Date();
-            console.log(block.timeStamp);
-            let prevBlock = getBlockByHeight(curHeight);
-            let prevHash = prevBlock.hash;
-            block.prevHash = prevHash;
+            block.timestamp = new Date().getTime().toString();
+            if(newHeight === 0){// new block is genesis block;
+                block.prevHash = null;
+            }
+            else{// this block is not genesis block 
+                let prevBlock = {};
+                try{
+                    prevBlock = await self.getBlockByHeight(curHeight);
+                }
+                catch(err){
+                    reject("Error fetching prevBlock");
+                }
+                if(prevBlock.hash === null){
+                    reject("prevBlock is empty");
+                }
+                let prevHash = prevBlock.hash;
+                block.prevHash = prevHash;
+            }
             block.hash = SHA256(JSON.stringify(block)).toString();
             self.chain.push(block);
             self.height = newHeight;
+            resolve(block);
         });
     }
 
@@ -124,7 +138,12 @@ class Blockchain {
                 reject("Verify failed");
             }
             let block = new Block(star);
-            self._addBlock(block);
+            try{
+                self._addBlock(block);
+            }
+            catch(err){
+                reject("_addBlock failed");
+            }
             resolve(block);
         });
     }
@@ -138,7 +157,12 @@ class Blockchain {
     getBlockByHash(hash) {
         let self = this;
         return new Promise((resolve, reject) => {
-           
+            let block = self.chain.filter(p => p.hash === hash)[0];
+            if(block){
+                resolve(block);
+            } else {
+                resolve(null);
+            }
         });
     }
 
@@ -169,7 +193,20 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise((resolve, reject) => {
-            
+            let bodies = self.chain.filter(p => {
+                let bodyHex = p.body;
+                let bodyString = hex2ascii(bodyHex);
+                let body = JSON.parse(bodyString);
+                return body.address === address;
+            });
+            for(let i = 0; i < bodies.length; ++i){
+                let star = bodies[i].star;
+                let starStoryHex = star.story;
+                let starStory = hex2ascii(starStoryHex);
+                star.story = starStory;
+                stars.push(star);
+            }
+            resolve(stars);
         });
     }
 
@@ -190,3 +227,13 @@ class Blockchain {
 }
 
 module.exports.Blockchain = Blockchain;   
+
+async function tester(){
+    console.log("Enter tester");
+    let blockchain = new Blockchain();
+    await blockchain.initializeChain();
+    await blockchain._addBlock({data : "Some Data"});
+    let block = await blockchain.getBlockByHeight(1);
+    console.log(block);
+}
+tester();
