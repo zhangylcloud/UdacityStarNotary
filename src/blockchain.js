@@ -124,14 +124,14 @@ class Blockchain {
                 reject("Passed 5 minute");
             }
             let verifyResult = bitcoinMessage.verify(message, address, signature);
-            if(verifyResult){
+            if(!verifyResult){
                 reject("Verify failed");
             }
             let blockData = {
                 address : address,
                 star : star
             };
-            let block = new Block(blockData);
+            let block = new BlockClass.Block(blockData);
             try{
                 self._addBlock(block);
             }
